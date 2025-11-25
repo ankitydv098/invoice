@@ -1,234 +1,114 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 interface InvoiceFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   initialData?: {
-    id?: string;
+    id: string;
     clientName: string;
     amount: number;
     status: 'pending' | 'paid';
-    dueDate?: string;
-    description?: string;
   };
 }
 
 export default function InvoiceForm({ onSuccess, onCancel, initialData }: InvoiceFormProps) {
   const [clientName, setClientName] = useState(initialData?.clientName || '');
-  const [amount, setAmount] = useState<number>(initialData?.amount ?? 0);
-  const [status, setStatus] = useState<'pending' | 'paid'>(initialData?.status ?? 'pending');
-  const [dueDate, setDueDate] = useState<string>(initialData?.dueDate || '');
-  const [description, setDescription] = useState<string>(initialData?.description || '');
+  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+  const [status, setStatus] = useState<'pending' | 'paid'>(initialData?.status || 'pending');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const res = await fetch('/api/clients');
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('Client fetch error:', errorText);
-          throw new Error(`Failed to fetch clients: ${res.status}`);
-        }
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setClients(data);
-        } else {
-          console.error('Invalid clients data format:', data);
-          setClients([]);
-        }
-      } catch (err: any) {
-        console.error('Error fetching clients:', err?.message ?? err);
-        // Don't set error state to avoid blocking the form
-        // User can still type client name manually
-        setClients([]);
-      }
-    };
-    fetchClients();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      setError('Please enter a valid amount.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Validate required fields
-      if (!clientName || !clientName.trim()) {
-        throw new Error('Client name is required');
-      }
-      if (amount <= 0) {
-        throw new Error('Amount must be greater than 0');
-      }
-
-      const method = initialData?.id ? 'PUT' : 'POST';
-      const url = initialData?.id ? `/api/invoices/${initialData.id}` : '/api/invoices';
-
-      const payload = { 
-        clientName: clientName.trim(), 
-        amount: Number(amount), 
-        status,
-        dueDate: dueDate || null,
-        description: description || null
-      };
-
-      console.log('Submitting invoice:', payload);
+      const method = initialData ? 'PUT' : 'POST';
+      const url = initialData ? `/api/invoices/${initialData.id}` : '/api/invoices';
 
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ clientName, amount: parsedAmount, status }),
       });
 
       if (!res.ok) {
-        let message = 'Failed to save invoice';
-        try {
-          const errorData = await res.json();
-          message = errorData?.message ?? message;
-        } catch {
-          const errorText = await res.text();
-          console.error('Server error:', errorText);
-        }
-        throw new Error(message);
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to save invoice');
       }
 
-      const result = await res.json();
-      console.log('Invoice saved successfully:', result);
       onSuccess();
     } catch (err: any) {
-      console.error('Submit error:', err);
-      setError(err?.message ?? 'Unknown error');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter client suggestions based on input
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(clientName.toLowerCase())
-  );
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="clientName">Client Name</Label>
-        <div className="relative">
-          <Input
-            type="text"
-            id="clientName"
-            value={clientName}
-            onChange={(e) => {
-              setClientName(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            required
-            placeholder="Enter or select client name"
-            autoComplete="off"
-          />
-          {showSuggestions && filteredClients.length > 0 && clientName && (
-            <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
-              {filteredClients.map((client) => (
-                <button
-                  key={client.id}
-                  type="button"
-                  onClick={() => {
-                    setClientName(client.name);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-accent transition-colors text-sm"
-                >
-                  {client.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">Type any name or select from existing clients</p>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <div>
+        <label htmlFor="clientName" className="block text-sm font-medium text-gray-700">Client Name</label>
+        <input
+          type="text"
+          id="clientName"
+          value={clientName}
+          onChange={(e) => setClientName(e.target.value)}
+          required
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        />
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="amount">Amount</Label>
-        <Input
+      <div>
+        <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
+        <input
           type="number"
           id="amount"
           value={amount}
-          onChange={(e) => setAmount(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+          onChange={(e) => setAmount(e.target.value)}
           required
-          min={0}
+          min="0"
           step="0.01"
-          placeholder="0.00"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         />
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="dueDate">Due Date (Optional)</Label>
-        <Input
-          type="date"
-          id="dueDate"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          placeholder="Select due date"
-        />
+      <div>
+        <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
+        <select
+          id="status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as 'pending' | 'paid')}
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+        </select>
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Description (Optional)</Label>
-        <Input
-          type="text"
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Add invoice description or notes"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="status">Status</Label>
-        <Select value={status} onValueChange={(value) => setStatus(value as 'pending' | 'paid')}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex gap-3 pt-4">
-        <Button type="button" onClick={onCancel} variant="outline" className="flex-1">
+      <div className="flex justify-end space-x-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
           Cancel
-        </Button>
-        <Button type="submit" disabled={loading} className="flex-1">
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            initialData ? 'Update Invoice' : 'Create Invoice'
-          )}
-        </Button>
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+        >
+          {loading ? 'Saving...' : initialData ? 'Update Invoice' : 'Create Invoice'}
+        </button>
       </div>
     </form>
   );

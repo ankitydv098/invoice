@@ -1,211 +1,142 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Loader2, Trash2, Users as UsersIcon } from 'lucide-react';
 
 interface Client {
   id: string;
   name: string;
   email: string;
-  address?: string;
+  phone?: string;
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Client[]>([
+    { id: '1', name: 'Client A', email: 'clienta@example.com', phone: '111-222-3333' },
+    { id: '2', name: 'Client B', email: 'clientb@example.com' },
+  ]);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true); // Add loading state
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-    } else {
-      fetchClients();
-    }
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  const fetchClients = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/clients');
-      const data = await response.json();
-      setClients(data);
-    } catch (error) {
-      console.error('Failed to fetch clients:', error);
-    } finally {
+    // Simulate fetching clients
+    setTimeout(() => {
       setLoading(false);
-    }
+    }, 1000);
+  }, []);
+
+  const addClient = (newClient: Client) => {
+    setClients([...clients, newClient]);
   };
 
-  const deleteClient = async (id: string) => {
-    if (confirm('Are you sure you want to delete this client?')) {
-      try {
-        await fetch(`/api/clients/${id}`, {
-          method: 'DELETE',
-        });
-        fetchClients();
-      } catch (error) {
-        console.error('Failed to delete client:', error);
-      }
-    }
+  const deleteClient = (id: string) => {
+    setClients(clients.filter((client) => client.id !== id));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitLoading(true);
-    const form = e.target as HTMLFormElement & {
-      clientName: { value: string };
-      clientEmail: { value: string };
-      clientAddress: { value: string };
+    const form = e.target as HTMLFormElement;
+    const newClient: Client = {
+      id: String(clients.length + 1),
+      name: form.clientName.value,
+      email: form.clientEmail.value,
+      phone: form.clientPhone.value,
     };
-
-    try {
-      await fetch('/api/clients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: form.clientName.value,
-          email: form.clientEmail.value,
-          address: form.clientAddress.value,
-        }),
-      });
-      setShowAddClientModal(false);
-      form.reset();
-      fetchClients();
-    } catch (error) {
-      console.error('Failed to create client:', error);
-    } finally {
-      setSubmitLoading(false);
-    }
+    addClient(newClient);
+    setShowAddClientModal(false);
+    form.reset();
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Clients</h1>
-          <p className="text-muted-foreground">Manage your client database</p>
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6">Clients</h1>
+
+      <button
+        onClick={() => setShowAddClientModal(true)}
+        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors mb-4"
+      >
+        Add New Client
+      </button>
+
+      {showAddClientModal && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Add New Client</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label htmlFor="clientName" className="block text-gray-700 text-sm font-bold mb-2">Client Name</label>
+                <input type="text" id="clientName" name="clientName" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="clientEmail" className="block text-gray-700 text-sm font-bold mb-2">Client Email</label>
+                <input type="email" id="clientEmail" name="clientEmail" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="clientPhone" className="block text-gray-700 text-sm font-bold mb-2">Client Phone</label>
+                <input type="text" id="clientPhone" name="clientPhone" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+              </div>
+              <div className="flex justify-end">
+                <button type="button" onClick={() => setShowAddClientModal(false)} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors mr-2">Cancel</button>
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Add Client</button>
+              </div>
+            </form>
+          </div>
         </div>
-        <Button onClick={() => setShowAddClientModal(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Client
-        </Button>
-      </div>
+      )}
 
-      {/* Add Client Dialog */}
-      <Dialog open={showAddClientModal} onOpenChange={setShowAddClientModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
-            <DialogDescription>
-              Enter the client's information below
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Client Name</Label>
-              <Input type="text" id="clientName" name="clientName" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientEmail">Client Email</Label>
-              <Input type="email" id="clientEmail" name="clientEmail" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientAddress">Client Address</Label>
-              <Input type="text" id="clientAddress" name="clientAddress" />
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button type="button" onClick={() => setShowAddClientModal(false)} variant="outline" className="flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitLoading} className="flex-1">
-                {submitLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  'Add Client'
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Clients Table */}
       {loading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading clients...</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-600">Loading clients...</p>
+        </div>
       ) : clients.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <UsersIcon className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No clients found</h3>
-            <p className="text-muted-foreground mb-4">Add your first client to get started</p>
-            <Button onClick={() => setShowAddClientModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Client
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-600">No clients found. Add a new client!</p>
+        </div>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+          <table className="min-w-full leading-normal">
+            <thead>
+              <tr>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Phone
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>{client.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{client.address || 'N/A'}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                <tr key={client.id}>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <p className="text-gray-900 whitespace-no-wrap">{client.name}</p>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <p className="text-gray-900 whitespace-no-wrap">{client.email}</p>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <p className="text-gray-900 whitespace-no-wrap">{client.phone || 'N/A'}</p>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button
                       onClick={() => deleteClient(client.id)}
-                      className="text-destructive hover:text-destructive"
-                      title="Delete"
+                      className="text-red-600 hover:text-red-900"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </Card>
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

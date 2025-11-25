@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '../../../../prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
   try {
@@ -7,15 +9,11 @@ export async function GET(request: Request) {
     const searchQuery = searchParams.get('search') || '';
 
     const invoices = await prisma.invoice.findMany({
-      where: searchQuery ? {
+      where: {
         OR: [
           { clientName: { contains: searchQuery } },
           { status: { contains: searchQuery } },
-          { description: { contains: searchQuery } },
         ],
-      } : {},
-      orderBy: {
-        createdAt: 'desc',
       },
     });
     return NextResponse.json(invoices);
@@ -27,43 +25,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    let invoiceData;
-    try {
-      invoiceData = await request.json();
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      return NextResponse.json({ message: 'Invalid JSON in request body' }, { status: 400 });
-    }
-    
-    // Validate required fields
-    if (!invoiceData.clientName || !invoiceData.amount || !invoiceData.status) {
-      return NextResponse.json({ 
-        message: 'Missing required fields: clientName, amount, and status are required.' 
-      }, { status: 400 });
+    const newInvoice = await request.json();
+
+    if (!newInvoice.clientName || typeof newInvoice.clientName !== 'string' || newInvoice.clientName.trim() === '') {
+      return NextResponse.json({ message: 'Invalid client name.' }, { status: 400 });
     }
 
-    // Ensure amount is a valid number
-    const amount = parseFloat(invoiceData.amount);
-    if (isNaN(amount)) {
-      return NextResponse.json({ 
-        message: 'Amount must be a valid number.' 
-      }, { status: 400 });
+    if (typeof newInvoice.amount !== 'number' || newInvoice.amount < 0) {
+      return NextResponse.json({ message: 'Invalid amount.' }, { status: 400 });
     }
 
-    const createdInvoice = await prisma.invoice.create({ 
-      data: {
-        clientName: invoiceData.clientName,
-        amount: amount,
-        status: invoiceData.status,
-        dueDate: invoiceData.dueDate || null,
-        description: invoiceData.description || null,
-      }
-    });
-    
-    return NextResponse.json({ 
-      message: 'Invoice created successfully.', 
-      invoice: createdInvoice 
-    }, { status: 201 });
+    if (newInvoice.status !== 'pending' && newInvoice.status !== 'paid') {
+      return NextResponse.json({ message: 'Invalid status.' }, { status: 400 });
+    }
+
+    const createdInvoice = await prisma.invoice.create({ data: newInvoice });
+    return NextResponse.json({ message: 'Invoice created successfully.', invoice: createdInvoice }, { status: 201 });
   } catch (error: any) {
     console.error('Failed to create invoice:', error);
     return NextResponse.json({ message: 'Failed to create invoice.', error: error.message }, { status: 500 });

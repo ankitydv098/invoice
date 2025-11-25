@@ -1,69 +1,36 @@
-# Invoice Management Platform
-
-A full-featured invoice management application built with Next.js 16, TypeScript, and Prisma ORM.
-
-## Features
-
-- **Client Management**: Add, edit, and manage clients
-- **Invoice Creation**: Create professional invoices with due dates and descriptions
-- **PDF Generation**: Export invoices as PDF documents
-- **Currency Support**: Multi-currency support (INR, USD, EUR, GBP)
-- **User Authentication**: Secure login and signup system
-- **Responsive Design**: Works on all device sizes
-- **Dark/Light Theme**: Toggle between themes
-
-## Tech Stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Styling**: Tailwind CSS, Shadcn UI
-- **Database**: SQLite with Prisma ORM
-- **Authentication**: Custom authentication system with bcrypt
-- **PDF Generation**: jsPDF
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ankitydv098/invoice.git
-   cd invoice
-   ```
+First, run the development server:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-3. Set up the database:
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-5. Open [http://localhost:3001](http://localhost:3001) in your browser
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Available Scripts
+## Learn More
 
-- `npm run dev` - Starts the development server on port 3001
-- `npm run build` - Builds the application for production
-- `npm run start` - Starts the production server
-- `npm run lint` - Runs the linter
+To learn more about Next.js, take a look at the following resources:
 
-## Deployment
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-The application can be deployed to any Node.js hosting platform. For production deployment:
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-1. Build the application: `npm run build`
-2. Start the production server: `npm run start`
+## Deploy on Vercel
 
-## Contributing
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

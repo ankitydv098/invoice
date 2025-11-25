@@ -1,220 +1,134 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Settings2, User, Building, Globe, DollarSign } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const [companyName, setCompanyName] = useState('');
-  const [companyEmail, setCompanyEmail] = useState('');
-  const [companyPhone, setCompanyPhone] = useState('');
-  const [companyAddress, setCompanyAddress] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [currency, setCurrency] = useState('INR');
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [preferences, setPreferences] = useState('{}');
   const [loading, setLoading] = useState(true);
-  const [saveLoading, setSaveLoading] = useState(false);
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
-    // Load settings from localStorage
-    const loadSettings = () => {
+    const fetchSettings = async () => {
       try {
-        const saved = localStorage.getItem('invoiceSettings');
-        if (saved) {
-          const settings = JSON.parse(saved);
-          setCompanyName(settings.companyName || '');
-          setCompanyEmail(settings.companyEmail || '');
-          setCompanyPhone(settings.companyPhone || '');
-          setCompanyAddress(settings.companyAddress || '');
-          setTaxId(settings.taxId || '');
-          setCurrency(settings.currency || 'INR');
+        const response = await fetch('/api/settings');
+        if (!response.ok) {
+          throw new Error('Failed to fetch settings');
         }
-      } catch (err) {
-        console.error('Failed to load settings:', err);
+        const data = await response.json();
+        setEmail(data.email || '');
+        setFullName(data.fullName || '');
+        setPreferences(JSON.stringify(data.preferences || {}, null, 2));
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    loadSettings();
+    fetchSettings();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaveLoading(true);
+    setLoading(true);
+    setError('');
     setMessage('');
 
     try {
-      const settings = {
-        companyName,
-        companyEmail,
-        companyPhone,
-        companyAddress,
-        taxId,
-        currency,
-        updatedAt: new Date().toISOString(),
-      };
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          fullName,
+          preferences: JSON.parse(preferences),
+        }),
+      });
 
-      localStorage.setItem('invoiceSettings', JSON.stringify(settings));
-      setMessage('Settings saved successfully!');
-      setTimeout(() => setMessage(''), 3000);
+      if (!response.ok) {
+        throw new Error('Failed to update settings');
+      }
+
+      const data = await response.json();
+      setMessage(data.message);
     } catch (err: any) {
-      setMessage('Failed to save settings');
+      setError(err.message);
     } finally {
-      setSaveLoading(false);
+      setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-16">
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading settings...</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="container mx-auto p-4 text-center">
+        <p>Loading settings...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-4 text-center text-red-500">
+        <p>Error: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in max-w-2xl">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 rounded-full bg-primary/10 glow-red-sm">
-          <Settings2 className="w-6 h-6 text-primary" />
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">User Settings</h1>
+      {message && <p className="text-green-500 mb-4">{message}</p>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-800 text-white"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div>
-          <h1 className="text-4xl font-bold">Business Settings</h1>
-          <p className="text-muted-foreground">Manage your company information and preferences</p>
+          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+            Full Name
+          </label>
+          <input
+            type="text"
+            id="fullName"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-800 text-white"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Company Information</CardTitle>
-          <CardDescription>
-            Update your business details for invoices
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {message && (
-            <div className="p-3 rounded-md bg-green-500/10 border border-green-500/20 mb-6">
-              <p className="text-sm text-green-500">{message}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="companyName" className="flex items-center gap-2">
-                <Building className="w-4 h-4" />
-                Company Name
-              </Label>
-              <Input
-                type="text"
-                id="companyName"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Your Company Name"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="companyEmail" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Company Email
-                </Label>
-                <Input
-                  type="email"
-                  id="companyEmail"
-                  value={companyEmail}
-                  onChange={(e) => setCompanyEmail(e.target.value)}
-                  placeholder="company@example.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="companyPhone" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Phone Number
-                </Label>
-                <Input
-                  type="tel"
-                  id="companyPhone"
-                  value={companyPhone}
-                  onChange={(e) => setCompanyPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="companyAddress" className="flex items-center gap-2">
-                <Building className="w-4 h-4" />
-                Company Address
-              </Label>
-              <Input
-                type="text"
-                id="companyAddress"
-                value={companyAddress}
-                onChange={(e) => setCompanyAddress(e.target.value)}
-                placeholder="123 Business Street, City, State"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="taxId" className="flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  Tax ID / GST Number
-                </Label>
-                <Input
-                  type="text"
-                  id="taxId"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  placeholder="GSTIN or Tax ID"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="currency" className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Default Currency
-                </Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="INR">₹ Indian Rupee (INR)</SelectItem>
-                    <SelectItem value="USD">$ US Dollar (USD)</SelectItem>
-                    <SelectItem value="EUR">€ Euro (EUR)</SelectItem>
-                    <SelectItem value="GBP">£ British Pound (GBP)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Button type="submit" disabled={saveLoading} className="w-full">
-              {saveLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Settings'
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        <div>
+          <label htmlFor="preferences" className="block text-sm font-medium text-gray-700">
+            Preferences
+          </label>
+          <textarea
+            id="preferences"
+            rows={6}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 font-mono bg-gray-800 text-white"
+            value={preferences}
+            onChange={(e) => setPreferences(e.target.value)}
+          ></textarea>
+        </div>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          disabled={loading}
+        >
+          {loading ? 'Saving...' : 'Save Settings'}
+        </button>
+      </form>
     </div>
   );
 }

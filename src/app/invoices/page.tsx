@@ -2,28 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import InvoiceForm from '@/components/InvoiceForm';
+import EditInvoiceForm from '@/components/EditInvoiceForm';
 import dynamic from 'next/dynamic';
+const InvoicePDFViewer = dynamic(() => import('@/components/InvoicePDFViewer'), { ssr: false });
 import { jsPDF } from 'jspdf';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, Download, Eye, Edit, Trash2, Loader2, FileText } from 'lucide-react';
-
-const InvoicePDFViewer = dynamic(() => import('@/components/InvoicePDFViewer'), { ssr: false });
 
 interface Invoice {
   id: string;
   clientName: string;
   amount: number;
   status: 'pending' | 'paid';
-  dueDate?: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export default function InvoicesPage() {
@@ -31,57 +20,40 @@ export default function InvoicesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [viewingPdf, setViewingPdf] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currency, setCurrency] = useState('₹'); // Default to INR
-  const { isAuthenticated } = useAuth();
-  const router = useRouter();
+  const [loading, setLoading] = useState(true); // Add loading state
+  const [searchQuery, setSearchQuery] = useState(''); // Add search query state
 
   useEffect(() => {
-    // Load currency setting
-    const loadSettings = () => {
-      try {
-        const saved = localStorage.getItem('invoiceSettings');
-        if (saved) {
-          const settings = JSON.parse(saved);
-          const currencyMap: Record<string, string> = {
-            'INR': '₹',
-            'USD': '$',
-            'EUR': '€',
-            'GBP': '£',
-          };
-          const currencySymbol = currencyMap[settings.currency] || '₹';
-          setCurrency(currencySymbol);
-        }
-      } catch (err) {
-        console.error('Failed to load settings:', err);
-      }
-    };
-    loadSettings();
-
-    if (!isAuthenticated) {
-      router.push("/login");
-    } else {
-      fetchInvoices();
-    }
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+    fetchInvoices();
+  }, []);
 
   const fetchInvoices = async () => {
     setLoading(true);
-    const res = await fetch(`/api/invoices?search=${searchQuery}`);
-    const data = await res.json();
-    setInvoices(data);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/invoices?search=${searchQuery}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setInvoices(data);
+        } else {
+          console.error('API returned non-array data:', data);
+          setInvoices([]);
+        }
+      } else {
+        console.error('Failed to fetch invoices:', res.statusText);
+        setInvoices([]);
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      setInvoices([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchInvoices();
@@ -102,19 +74,17 @@ export default function InvoicesPage() {
   };
 
   const handleDeleteInvoice = async (id: string) => {
-    if (confirm('Are you sure you want to delete this invoice?')) {
-      await fetch(`/api/invoices/${id}`, {
-        method: 'DELETE',
-      });
-      fetchInvoices();
-    }
+    await fetch(`/api/invoices/${id}`, {
+      method: 'DELETE',
+    });
+    fetchInvoices();
   };
 
   const generatePdf = (invoice: Invoice) => {
     const doc = new jsPDF();
     doc.text(`Invoice ID: ${invoice.id}`, 10, 10);
     doc.text(`Client Name: ${invoice.clientName}`, 10, 20);
-    doc.text(`Amount: ${currency}${invoice.amount.toFixed(2)}`, 10, 30);
+    doc.text(`Amount: $${invoice.amount.toFixed(2)}`, 10, 30);
     doc.text(`Status: ${invoice.status}`, 10, 40);
     return doc.output('datauristring');
   };
@@ -135,174 +105,144 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Invoices</h1>
-          <p className="text-muted-foreground">Manage and track all your invoices</p>
-        </div>
-        <Button onClick={() => setShowCreateForm(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Create Invoice
-        </Button>
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6">Invoices</h1>
+
+      <div className="flex justify-between items-center mb-4">
+        <button
+          onClick={() => setShowCreateForm(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          Create New Invoice
+        </button>
+        <form onSubmit={handleSearchSubmit} className="flex items-center">
+          <input
+            type="text"
+            placeholder="Search invoices..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-2"
+          />
+          <button
+            type="submit"
+            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+          >
+            Search
+          </button>
+        </form>
       </div>
 
-      {/* Search Bar */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <form onSubmit={handleSearchSubmit} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search invoices by client name or status..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-10"
-              />
-            </div>
-            <Button type="submit" variant="secondary">
-              Search
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Create Invoice</h2>
+            <InvoiceForm onSuccess={handleInvoiceCreated} onCancel={() => setShowCreateForm(false)} />
+          </div>
+        </div>
+      )}
 
-      {/* Create Invoice Dialog */}
-      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create New Invoice</DialogTitle>
-            <DialogDescription>
-              Fill in the details below to create a new invoice
-            </DialogDescription>
-          </DialogHeader>
-          <InvoiceForm onSuccess={handleInvoiceCreated} onCancel={() => setShowCreateForm(false)} />
-        </DialogContent>
-      </Dialog>
+      {editingInvoice && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Edit Invoice</h2>
+            <EditInvoiceForm invoice={editingInvoice} onSuccess={handleInvoiceUpdated} onCancel={() => setEditingInvoice(null)} />
+          </div>
+        </div>
+      )}
 
-      {/* Edit Invoice Dialog */}
-      <Dialog open={!!editingInvoice} onOpenChange={(open) => !open && setEditingInvoice(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Invoice</DialogTitle>
-            <DialogDescription>
-              Update the invoice details
-            </DialogDescription>
-          </DialogHeader>
-          {editingInvoice && (
-            <InvoiceForm
-              initialData={editingInvoice}
-              onSuccess={handleInvoiceUpdated}
-              onCancel={() => setEditingInvoice(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {viewingPdf && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-3xl h-5/6 overflow-auto">
+            <h2 className="text-2xl font-bold mb-4">Invoice PDF</h2>
+            <InvoicePDFViewer pdfData={viewingPdf} />
+            <button
+              onClick={() => setViewingPdf(null)}
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Close PDF
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* PDF Viewer Dialog */}
-      <Dialog open={!!viewingPdf} onOpenChange={(open) => !open && setViewingPdf(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Invoice PDF Preview</DialogTitle>
-          </DialogHeader>
-          {viewingPdf && <InvoicePDFViewer pdfData={viewingPdf} />}
-        </DialogContent>
-      </Dialog>
-
-      {/* Invoices Table */}
       {loading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading invoices...</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-600">Loading invoices...</p>
+        </div>
       ) : invoices.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <FileText className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No invoices found</h3>
-            <p className="text-muted-foreground mb-4">Get started by creating your first invoice</p>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Invoice
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-600">No invoices found. Create a new one!</p>
+        </div>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client Name</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+          <table className="min-w-full leading-normal">
+            <thead>
+              <tr>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Client Name
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.clientName}</TableCell>
-                  <TableCell>{currency}{invoice.amount.toFixed(2)}</TableCell>
-                  <TableCell>
+                <tr key={invoice.id}>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <p className="text-gray-900 whitespace-no-wrap">{invoice.clientName}</p>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <p className="text-gray-900 whitespace-no-wrap">${invoice.amount.toFixed(2)}</p>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        invoice.status === 'pending'
-                          ? 'bg-yellow-500/10 text-yellow-500'
-                          : 'bg-green-500/10 text-green-500'
-                      }`}
+                      className={`relative inline-block px-3 py-1 font-semibold leading-tight ${invoice.status === 'pending' ? 'text-yellow-900' : 'text-green-900'}`}
                     >
-                      {invoice.status}
+                      <span
+                        aria-hidden
+                        className={`absolute inset-0 ${invoice.status === 'pending' ? 'bg-yellow-200' : 'bg-green-200'} opacity-50 rounded-full`}
+                      ></span>
+                      <span className="relative">{invoice.status}</span>
                     </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditInvoice(invoice)}
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewPdf(invoice)}
-                        title="View PDF"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDownloadPdf(invoice)}
-                        title="Download PDF"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteInvoice(invoice.id)}
-                        title="Delete"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                  <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button
+                      onClick={() => handleEditInvoice(invoice)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteInvoice(invoice.id)}
+                      className="text-red-600 hover:text-red-900 mr-3"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => handleViewPdf(invoice)}
+                      className="text-green-600 hover:text-green-900 mr-3"
+                    >
+                      View PDF
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPdf(invoice)}
+                      className="text-purple-600 hover:text-purple-900"
+                    >
+                      Download PDF
+                    </button>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </Card>
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-// @ts-ignore
+import React, { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -23,25 +22,25 @@ export default function InvoicePDFViewer({ pdfData }: InvoicePDFViewerProps) {
   const goToNextPage = () => setPageNumber(prevPageNumber => Math.min(prevPageNumber + 1, numPages || 1));
 
   return (
-    <div >
-      <div >
+    <div className="flex flex-col items-center p-4">
+      <div className="mb-4">
         <button
           onClick={goToPrevPage}
           disabled={pageNumber <= 1}
-          
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
         >
           Previous
         </button>
         <button
           onClick={goToNextPage}
           disabled={pageNumber >= (numPages || 1)}
-          
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
           Next
         </button>
-        <p >Page {pageNumber} of {numPages || '--'}</p>
+        <p className="inline-block ml-4">Page {pageNumber} of {numPages || '--'}</p>
       </div>
-      <div >
+      <div className="border border-gray-300 shadow-lg">
         <Document
           file={pdfData}
           onLoadSuccess={onDocumentLoadSuccess}
